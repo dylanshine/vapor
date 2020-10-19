@@ -1,8 +1,14 @@
 public struct Validations {
     var storage: [Validation]
+    var unkeyedStorage: [UnkeyedValidation]
     
+    var hasValidations: Bool {
+        return !storage.isEmpty || !unkeyedStorage.isEmpty
+    }
+
     public init() {
         self.storage = []
+        self.unkeyedStorage = []
     }
     
     public mutating func add<T>(
@@ -36,14 +42,25 @@ public struct Validations {
     
     public mutating func add(
         each key: ValidationKey,
-        required: Bool = true,
         _ handler: @escaping (Int, inout Validations) -> ()
     ) {
-        let validation = Validation(nested: key, required: required, unkeyed: handler)
+        let validation = Validation(nested: key, unkeyed: handler)
         self.storage.append(validation)
     }
     
+    public mutating func addUnkeyed<T>(
+        _ type: T.Type,
+        _ handler: @escaping (Int, inout Validations) -> ()
+    ) {
+        let validation = UnkeyedValidation(key: .string(String(describing: T.self)), handler: handler)
+        self.unkeyedStorage.append(validation)
+    }
+    
     public func validate(request: Request) throws -> ValidationsResult {
+        guard hasValidations else {
+            return ValidationsResult(results: [])
+        }
+        
         guard let contentType = request.headers.contentType else {
             throw Abort(.unprocessableEntity)
         }
@@ -56,24 +73,42 @@ public struct Validations {
     }
     
     public func validate(query: URI) throws -> ValidationsResult {
+        guard hasValidations else {
+            return ValidationsResult(results: [])
+        }
+        
         let urlDecoder = try ContentConfiguration.global.requireURLDecoder()
         let decoder = try urlDecoder.decode(DecoderUnwrapper.self, from: query)
         return try self.validate(decoder.decoder)
     }
     
     public func validate(json: String) throws -> ValidationsResult {
+        guard hasValidations else {
+            return ValidationsResult(results: [])
+        }
+        
         let decoder = try JSONDecoder().decode(DecoderUnwrapper.self, from: Data(json.utf8))
         return try self.validate(decoder.decoder)
     }
     
     public func validate(_ decoder: Decoder) throws -> ValidationsResult {
-        try self.validate(decoder.container(keyedBy: ValidationKey.self))
+        if !unkeyedStorage.isEmpty {
+            return validate(try decoder.unkeyedContainer())
+        }
+        
+        if !storage.isEmpty {
+            return validate(try decoder.container(keyedBy: ValidationKey.self))
+        }
+        
+        return ValidationsResult(results: [])
     }
 
-    internal func validate(_ decoder: KeyedDecodingContainer<ValidationKey>) -> ValidationsResult {
-        .init(results: self.storage.map {
-            $0.run(decoder)
-        })
+    internal func validate(_ container: KeyedDecodingContainer<ValidationKey>) -> ValidationsResult {
+        .init(results: storage.map { $0.run(container) })
+    }
+    
+    internal func validate(_ container: UnkeyedDecodingContainer) -> ValidationsResult {
+        .init(results: unkeyedStorage.map { $0.run(container) })
     }
 }
 

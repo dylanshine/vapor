@@ -286,6 +286,46 @@ class ValidationTests: XCTestCase {
         }
     }
     
+    func testValidateUnkeyedContainer() throws {
+        struct User: Validatable {
+            var name: String
+            var age: Int
+
+            static func validations(_ v: inout Validations) {
+                v.add("name", as: String.self, is: .count(5...) && .alphanumeric)
+                v.add("age", as: Int.self, is: .range(18...))
+            }
+        }
+
+        XCTAssertNoThrow(try [User].validate(json: """
+        [
+            {
+                "name": "Tanner",
+                "age": 24,
+            },
+            {
+                "name": "Dylan",
+                "age": 18,
+            }
+        ]
+        """))
+        
+        XCTAssertThrowsError(try [User].validate(json: """
+        [
+            {
+                "name": "Tanner",
+                "age": 24,
+            },
+            {
+                "name": "Dylan",
+                "age": 17,
+            }
+        ]
+        """)) { error in
+            XCTAssertEqual("\(error)", "User at index 1 age is less than minimum of 18")
+        }
+    }
+    
     func testCatchError() throws {
         struct User: Validatable, Codable {
             var name: String

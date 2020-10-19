@@ -47,7 +47,7 @@ public struct Validation {
         }
     }
     
-    init(nested key: ValidationKey, required: Bool, unkeyed factory: @escaping (Int, inout Validations) -> ()) {
+    init(nested key: ValidationKey, unkeyed factory: @escaping (Int, inout Validations) -> ()) {
         self.init { container in
             let result: ValidatorResult
             do {
@@ -77,6 +77,37 @@ public struct Validation {
     }
     
     init(run: @escaping (KeyedDecodingContainer<ValidationKey>) -> ValidationResult) {
+        self.run = run
+    }
+}
+
+public struct UnkeyedValidation {
+    let run: (UnkeyedDecodingContainer) -> ValidationResult
+
+    init(key: ValidationKey, handler factory: @escaping (Int, inout Validations) -> ()) {
+        self.init { container in
+            let result: ValidatorResult
+            do {
+                var results: [[ValidatorResult]] = []
+                var container = container
+                var i = 0
+                while !container.isAtEnd {
+                    defer { i += 1 }
+                    var validations = Validations()
+                    factory(i, &validations)
+                    let nested = try container.nestedContainer(keyedBy: ValidationKey.self)
+                    let result = validations.validate(nested)
+                    results.append(result.results)
+                }
+                result = ValidatorResults.NestedEach(results: results)
+            } catch {
+                result = ValidatorResults.Codable(error: error)
+            }
+            return .init(key: key, result: result)
+        }
+    }
+
+    init(run: @escaping (UnkeyedDecodingContainer) -> ValidationResult) {
         self.run = run
     }
 }

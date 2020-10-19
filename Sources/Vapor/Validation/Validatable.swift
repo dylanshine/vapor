@@ -39,3 +39,11 @@ extension Validatable {
         return validations
     }
 }
+
+extension Array: Validatable where Element: Validatable {
+    public static func validations(_ validations: inout Validations) {
+        validations.addUnkeyed(Element.self) { (_, validations) in
+            Element.validations(&validations)
+        }
+    }
+}
