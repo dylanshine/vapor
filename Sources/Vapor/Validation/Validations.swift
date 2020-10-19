@@ -48,11 +48,10 @@ public struct Validations {
         self.storage.append(validation)
     }
     
-    public mutating func addUnkeyed<T>(
-        _ type: T.Type,
+    public mutating func addUnkeyed(
         _ handler: @escaping (Int, inout Validations) -> ()
     ) {
-        let validation = UnkeyedValidation(key: .string(String(describing: T.self)), handler: handler)
+        let validation = UnkeyedValidation(handler: handler)
         self.unkeyedStorage.append(validation)
     }
     

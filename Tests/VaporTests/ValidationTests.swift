@@ -322,7 +322,7 @@ class ValidationTests: XCTestCase {
             }
         ]
         """)) { error in
-            XCTAssertEqual("\(error)", "User at index 1 age is less than minimum of 18")
+            XCTAssertEqual("\(error)", "Unkeyed at index 1 age is less than minimum of 18")
         }
     }
     

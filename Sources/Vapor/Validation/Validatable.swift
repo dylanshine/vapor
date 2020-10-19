@@ -42,7 +42,7 @@ extension Validatable {
 
 extension Array: Validatable where Element: Validatable {
     public static func validations(_ validations: inout Validations) {
-        validations.addUnkeyed(Element.self) { (_, validations) in
+        validations.addUnkeyed { (_, validations) in
             Element.validations(&validations)
         }
     }

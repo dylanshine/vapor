@@ -84,7 +84,7 @@ public struct Validation {
 public struct UnkeyedValidation {
     let run: (UnkeyedDecodingContainer) -> ValidationResult
 
-    init(key: ValidationKey, handler factory: @escaping (Int, inout Validations) -> ()) {
+    init(handler factory: @escaping (Int, inout Validations) -> ()) {
         self.init { container in
             let result: ValidatorResult
             do {
@@ -103,7 +103,7 @@ public struct UnkeyedValidation {
             } catch {
                 result = ValidatorResults.Codable(error: error)
             }
-            return .init(key: key, result: result)
+            return .init(key: .init(stringLiteral: "Unkeyed"), result: result)
         }
     }
 
